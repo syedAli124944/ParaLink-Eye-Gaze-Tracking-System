@@ -54,11 +54,16 @@ async def lifespan(app: FastAPI):
     logger.info(f"API docs: http://localhost:{PORT}/docs")
     logger.info("=" * 60)
 
-    # Auto-connect to ESP32 via serial if enabled
+    # Start serial monitoring with a small delay to allow server to bind first
     if SERIAL_ENABLED and IOT_MODE == "serial":
-        from services.serial_service import serial_service
-        result = serial_service.connect(port=SERIAL_PORT, baud=SERIAL_BAUD)
-        logger.info(f"Serial auto-connect: {result['message']}")
+        try:
+            from services.serial_service import serial_service
+            import threading
+            # Delay start by 2 seconds to ensure API is responsive first
+            threading.Timer(2.0, serial_service.start_monitoring).start()
+            logger.info("Serial monitor scheduled (2s delay)")
+        except Exception as e:
+            logger.error(f"⚠️ Failed to schedule serial monitor: {e}")
 
     yield  # App is running
 
@@ -86,11 +91,21 @@ app = FastAPI(
 # ──────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ──────────────────────────────────────────────
+# Logging Filter (to stop terminal spam)
+# ──────────────────────────────────────────────
+import logging
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        return "/devices/status" not in record.getMessage() and "/health" not in record.getMessage()
+
+logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 # ──────────────────────────────────────────────
 # Static Files (serve generated audio files)

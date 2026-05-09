@@ -239,7 +239,15 @@ export function HomeAppliancesModal({ onClose }) {
       // Toggle logic for primary blink select
       deviceId = actionValue;
       const currentState = deviceStates[deviceId];
-      action = currentState === 'ON' ? 'off' : 'on';
+      
+      if (deviceId === 'all') {
+        // If "All Devices" is targeted, turn OFF if ANY device is currently ON
+        const anyOn = Object.entries(deviceStates).some(([id, state]) => id !== 'all' && state === 'ON');
+        action = anyOn ? 'off' : 'on';
+      } else {
+        action = currentState === 'ON' ? 'off' : 'on';
+      }
+      
       actionValue = `${deviceId}_${action}`;
     }
 
@@ -250,40 +258,27 @@ export function HomeAppliancesModal({ onClose }) {
     ttsService.speak(speechLabel, language);
     showToast(`Sending: ${speechLabel}...`);
 
-    // Special Handling: All Devices
-    if (deviceId === 'all') {
-      const isTurnOn = action === 'on';
-      const targets = ['light', 'fan', 'tv', 'ac', 'router'];
-      const actionSuffix = isTurnOn ? '_on' : '_off';
-      const newState = isTurnOn ? 'ON' : 'OFF';
-
-      // Update UI optimistically
-      const newStates = { all: newState };
-      targets.forEach(t => { newStates[t] = newState; });
-      setDeviceStates(prev => ({ ...prev, ...newStates }));
-
-      // Send serial commands with staggered timing
-      targets.forEach((t, i) => {
-        setTimeout(() => {
-          sendSelection('device', `${t}${actionSuffix}`, language).catch(e => console.error(e));
-        }, i * 300);
-      });
-      return;
-    }
-
-    // Single device optimistic update
-    if (action === 'on') setDeviceStates(prev => ({ ...prev, [deviceId]: 'ON' }));
-    else if (action === 'off') setDeviceStates(prev => ({ ...prev, [deviceId]: 'OFF' }));
-
     // Send to backend
     sendSelection('device', actionValue, language)
       .then(response => {
         if (response.device_status) {
-          setDeviceStates(prev => ({ ...prev, [deviceId]: response.device_status }));
+          if (deviceId === 'all') {
+            const targets = ['light', 'fan', 'tv', 'ac', 'router', 'all'];
+            const newState = response.device_status;
+            setDeviceStates(prev => {
+              const next = { ...prev };
+              targets.forEach(t => { next[t] = newState; });
+              return next;
+            });
+          } else {
+            setDeviceStates(prev => ({ ...prev, [deviceId]: response.device_status }));
+          }
         }
+        showToast(`${speechLabel} SUCCESS`);
       })
       .catch(error => {
         console.warn('Action failed (offline):', error.message);
+        showToast(`FAILED: ${error.message}`);
       });
       
     // Expand the card if it was a primary blink
@@ -311,6 +306,14 @@ export function HomeAppliancesModal({ onClose }) {
                 <span className={`w-2 h-2 rounded-full ${esp32Connected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}></span>
                 ESP32 {esp32Connected ? 'Connected' : 'Disconnected'}
               </span>
+              {!esp32Connected && (
+                <button 
+                  onClick={refreshStatus}
+                  className="px-2 py-0.5 bg-white/20 hover:bg-white/30 rounded-full text-[10px] font-bold transition-all animate-pulse border border-white/40"
+                >
+                  RECONNECT
+                </button>
+              )}
             </p>
           </div>
           <button

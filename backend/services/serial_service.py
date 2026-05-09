@@ -30,7 +30,7 @@ except ImportError:
 
 
 class SerialService:
-    """Thread-safe serial connection manager for ESP32."""
+    """Thread-safe serial connection manager for ESP32 with auto-reconnect."""
 
     def __init__(self):
         self._connection = None
@@ -38,6 +38,37 @@ class SerialService:
         self._is_connected = False
         self._port = None
         self._baud = 9600
+        self._stop_monitor = threading.Event()
+        self._monitor_thread = None
+
+    def start_monitoring(self):
+        """Start a background thread to maintain the serial connection."""
+        if self._monitor_thread and self._monitor_thread.is_alive():
+            return
+
+        self._stop_monitor.clear()
+        self._monitor_thread = threading.Thread(target=self._monitor_loop, daemon=True)
+        self._monitor_thread.start()
+        logger.info("Serial connection monitor started.")
+
+    def stop_monitoring(self):
+        """Stop the background monitor."""
+        self._stop_monitor.set()
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=1.0)
+        logger.info("Serial connection monitor stopped.")
+
+    def _monitor_loop(self):
+        """Background loop to check and restore connection."""
+        while not self._stop_monitor.is_set():
+            if not self._is_connected:
+                # Try to auto-connect
+                from config import SERIAL_PORT, SERIAL_BAUD
+                # logger.debug("Monitor: Attempting auto-connect...")
+                self.connect(port=SERIAL_PORT, baud=SERIAL_BAUD)
+            
+            # Check every 5 seconds
+            time.sleep(5)
 
     # ──────────────────────────────────────────
     # Connection Management
@@ -55,7 +86,15 @@ class SerialService:
             return {"status": "error", "message": "pyserial not installed. Run: pip install pyserial"}
 
         if self._is_connected:
-            return {"status": "already_connected", "message": f"Already connected to {self._port}", "port": self._port}
+            # Double check if the connection is REALLY open
+            try:
+                with self._lock:
+                    if self._connection and self._connection.is_open:
+                        return {"status": "already_connected", "message": f"Already connected to {self._port}", "port": self._port}
+                    else:
+                        self._is_connected = False
+            except Exception:
+                self._is_connected = False
 
         # Auto-detect COM port if requested
         if port.lower() == "auto":
@@ -65,19 +104,29 @@ class SerialService:
 
         try:
             logger.info(f"Connecting to serial port {port} at {baud} baud...")
-            self._connection = serial.Serial(
+            
+            # Open the connection OUTSIDE the lock to prevent freezing the API
+            new_conn = serial.Serial(
                 port=port,
                 baudrate=baud,
                 timeout=1,
                 write_timeout=1,
+                dsrdtr=False,
+                rtscts=False
             )
             
-            # Give ESP32 time to boot up after the initial serial connection reset
-            time.sleep(2)
+            # Disable DTR/RTS to prevent reset
+            new_conn.dtr = False
+            new_conn.rts = False
+            
+            with self._lock:
+                self._connection = new_conn
+                self._is_connected = True
+                self._port = port
+                self._baud = baud
 
-            self._is_connected = True
-            self._port = port
-            self._baud = baud
+            # Give ESP32 time to boot up
+            time.sleep(2)
 
             logger.info(f"✅ Serial connected: {port} @ {baud} baud")
             return {"status": "connected", "message": f"Connected to {port}", "port": port}
@@ -125,6 +174,10 @@ class SerialService:
 
         try:
             with self._lock:
+                if not self._connection.is_open:
+                    self._is_connected = False
+                    return {"status": "error", "message": "Serial port is closed"}
+                    
                 self._connection.write(command_char.encode('utf-8'))
                 self._connection.flush()
 
@@ -150,11 +203,12 @@ class SerialService:
 
         try:
             with self._lock:
-                if self._connection.in_waiting > 0:
-                    line = self._connection.readline().decode('utf-8').strip()
-                    if line:
-                        logger.info(f"📡 Serial RX: '{line}'")
-                        return line
+                if self._connection.is_open and self._connection.in_waiting > 0:
+                    # Read whatever is available
+                    data = self._connection.read(self._connection.in_waiting).decode('utf-8', errors='ignore').strip()
+                    if data:
+                        logger.info(f"📡 Serial RX: '{data}'")
+                        return data
         except Exception as e:
             logger.error(f"Serial read error: {e}")
 
@@ -207,14 +261,13 @@ class SerialService:
                     logger.info(f"Auto-detected ESP32 port: {port_info.device} ({port_info.description})")
                     return port_info.device
 
-        # Removed fallback: return first available port if only one exists
-        # This prevents accidental connection to non-ESP32 devices.
-        # all_ports = list(serial.tools.list_ports.comports())
-        # if len(all_ports) == 1:
-        #     logger.info(f"Auto-detect fallback: using only available port {all_ports[0].device}")
-        #     return all_ports[0].device
+        # Fallback: if only one port exists, use it!
+        all_ports = list(serial.tools.list_ports.comports())
+        if len(all_ports) == 1:
+            logger.info(f"Auto-detect fallback: using only available port {all_ports[0].device}")
+            return all_ports[0].device
 
-        logger.warning("Auto-detect failed: No ESP32-compatible port found.")
+        logger.warning(f"Auto-detect failed. Available ports: {[p.device for p in all_ports]}")
         return None
 
 

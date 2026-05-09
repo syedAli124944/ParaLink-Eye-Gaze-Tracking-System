@@ -106,28 +106,32 @@ async def send_device_command(value: str) -> dict:
 async def _handle_all_devices(state: str) -> dict:
     """Turn all devices ON or OFF."""
     action = "on" if state == "ON" else "off"
-    responses = []
-
-    for device in ["light", "fan", "ac", "tv", "router"]:
+    
+    # Update all in-memory states
+    for device in _device_states:
         _device_states[device] = state
 
-        if IOT_MODE == "serial" and SERIAL_ENABLED:
-            cmd_key = f"all_{action}"
-            resp = _send_via_serial(cmd_key)
-            responses.append(resp)
-            break  # "Z" or "z" handles all at once on ESP32 side
-        elif IOT_MODE == "wifi" and IOT_ENABLED:
+    if IOT_MODE == "serial" and SERIAL_ENABLED:
+        cmd_key = f"all_{action}"
+        resp = _send_via_serial(cmd_key)
+        return {
+            "device_status": state,
+            "esp32_response": resp,
+        }
+    
+    elif IOT_MODE == "wifi" and IOT_ENABLED:
+        responses = []
+        for device in ["light", "fan", "ac", "tv", "router"]:
             resp = await _send_to_esp32(f"/{device}/{action}")
             responses.append(f"{device}: {resp}")
-
-    if not responses:
-        responses = ["IoT disabled (all simulated)"]
-
-    logger.info(f"All devices set to {state}")
+        return {
+            "device_status": state,
+            "esp32_response": "; ".join(responses),
+        }
 
     return {
         "device_status": state,
-        "esp32_response": "; ".join(responses),
+        "esp32_response": "IoT disabled",
     }
 
 
@@ -144,23 +148,9 @@ def _send_via_serial(command_key: str) -> str:
     result = serial_service.send_command(serial_char)
 
     if result["status"] == "sent":
-        # Wait a tiny bit for the ESP32 to process and reply
-        import time
-        time.sleep(0.3)
-        
-        # Read the acknowledgment from ESP32
-        ack_lines = []
-        while True:
-            line = serial_service.read_response()
-            if not line:
-                break
-            ack_lines.append(line)
-            
-        if ack_lines:
-            ack_str = " | ".join(ack_lines)
-            return f"Serial OK: sent '{serial_char}' | ESP32 replied: '{ack_str}'"
-        else:
-            return f"Serial OK: sent '{serial_char}' | No reply from ESP32"
+        # Don't wait for reply here to keep UI responsive
+        # The monitor thread or a separate call can handle responses
+        return f"Serial OK: sent '{serial_char}' to {serial_service.get_status()['port']}"
     else:
         return f"Serial error: {result['message']}"
 
@@ -186,8 +176,14 @@ async def _send_to_esp32(endpoint: str) -> str:
 
 
 def get_all_device_states() -> dict:
-    """Get the current state of all devices."""
-    return dict(_device_states)
+    """Get states of all tracked devices, plus a virtual 'all' state."""
+    states = _device_states.copy()
+    
+    # Virtual 'all' state: ON if any device is ON, else OFF
+    any_on = any(s == "ON" for s in states.values())
+    states["all"] = "ON" if any_on else "OFF"
+    
+    return states
 
 
 def get_device_state(device: str) -> str:

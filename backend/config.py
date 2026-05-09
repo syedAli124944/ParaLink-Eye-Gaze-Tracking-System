@@ -17,9 +17,11 @@ PORT = 8000
 # CORS - Frontend Origins
 # ──────────────────────────────────────────────
 CORS_ORIGINS = [
-    "http://localhost:5173",   # Vite dev server
-    "http://localhost:3000",   # Alternative dev server
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
     "http://127.0.0.1:3000",
 ]
 
@@ -49,7 +51,7 @@ IOT_MODE = "serial"              # ← Change to "wifi" for wireless ESP32
 # Serial / COM Port Settings (Phase 2)
 # ──────────────────────────────────────────────
 SERIAL_ENABLED = True            # Set to True when ESP32 is connected via USB
-SERIAL_PORT = "auto"             # Automatically detect the ESP32 COM port
+SERIAL_PORT = "COM3"             # Manually set to COM3 for stability
 SERIAL_BAUD = 9600               # Baud rate (must match ESP32 Serial.begin())
 SERIAL_TIMEOUT = 1               # Read timeout in seconds
 
