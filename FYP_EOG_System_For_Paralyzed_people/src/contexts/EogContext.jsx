@@ -22,12 +22,12 @@ export function EogProvider({ children }) {
 
   useEffect(() => {
     if (isEogEnabled) {
-      // Start EOG service
-      eogService.startBlinkDetection();
+      // Start EOG service with current mode
+      eogService.startBlinkDetection(eogMode);
 
       // Subscribe to blink events
-      const unsubscribeBlink = eogService.onBlink(() => {
-        setBlinkCount(eogService.getBlinkCount());
+      const unsubscribeBlink = eogService.onBlink((count) => {
+        setBlinkCount(count);
       });
 
       // Subscribe to selection events
@@ -37,16 +37,40 @@ export function EogProvider({ children }) {
         setBlinkCount(0);
       });
 
+      // Subscribe to gaze events for hit-testing
+      const unsubscribeGaze = eogService.onGaze((data) => {
+        if (eogMode !== 'webcam') return;
+
+        // Convert 0-1 coordinates to screen pixels
+        const screenX = data.gaze_x * window.innerWidth;
+        const screenY = data.gaze_y * window.innerHeight;
+
+        // Find element at gaze position
+        const element = document.elementFromPoint(screenX, screenY);
+        if (element) {
+          // Look for an element with an ID that matches our focusable items
+          // We check the element itself and its parents
+          const target = element.closest('[data-eog-id]');
+          if (target) {
+            const eogId = target.getAttribute('data-eog-id');
+            if (eogId && eogId !== focusedItem) {
+              setFocusedItem(eogId);
+            }
+          }
+        }
+      });
+
       return () => {
         unsubscribeBlink();
         unsubscribeSelection();
+        unsubscribeGaze();
         eogService.stopBlinkDetection();
       };
     } else {
       eogService.stopBlinkDetection();
       setBlinkCount(0);
     }
-  }, [isEogEnabled]);
+  }, [isEogEnabled, eogMode]);
 
   const handleSetEogEnabled = (enabled) => {
     setIsEogEnabled(enabled);

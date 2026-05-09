@@ -7,26 +7,23 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Always start with no user - login page will always show
-    // If you i to remember logged-in users, uncomment the lines 13,14,15,16,17 beloww:
-    
-    // const storedUser = localStorage.getItem('user');
-    // if (storedUser) {
-    //   setUser(JSON.parse(storedUser));
-    // }
-    
+    // Use sessionStorage: first visit shows login, reload preserves session,
+    // closing the browser/tab logs out automatically.
+    const storedUser = sessionStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
     setLoading(false);
   }, []);
 
   const signUp = async (email, _password) => {
     try {
-      // Mock sign up - just create a user locally
       const newUser = {
         id: Date.now().toString(),
         email,
       };
       setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      sessionStorage.setItem('user', JSON.stringify(newUser));
       return { error: null };
     } catch (error) {
       return { error };
@@ -35,13 +32,12 @@ export function AuthProvider({ children }) {
 
   const signIn = async (email, _password) => {
     try {
-      // Mock sign in - just create a user locally
       const newUser = {
         id: Date.now().toString(),
         email,
       };
       setUser(newUser);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      sessionStorage.setItem('user', JSON.stringify(newUser));
       return { error: null };
     } catch (error) {
       return { error };
@@ -50,7 +46,7 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     setUser(null);
-    localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
   };
 
   return (

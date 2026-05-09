@@ -32,28 +32,6 @@ export function useEogSelection({
     const unsubscribe = eogService.onSelection(() => {
       console.log(`EOG Selection: ${label}`);
       
-      // Speak immediately
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        
-        const utterance = new SpeechSynthesisUtterance();
-        utterance.text = label === 'Pain' ? 'I am in pain' :
-                         label === 'Happy' ? 'I am happy' :
-                         label === 'Sad' ? 'I am sad' :
-                         label === 'Hungry' ? 'I am hungry' :
-                         label === 'Washroom' ? 'I need the washroom' :
-                         label === 'Tired' ? 'I am tired' :
-                         label === 'Thirsty' ? 'I am thirsty' :
-                         label === 'Cold' ? 'I am cold' :
-                         label === 'Hot' ? 'I am hot' : label;
-        utterance.lang = 'en-US';
-        utterance.rate = 0.9;
-        utterance.volume = 1;
-        
-        console.log('EOG Speaking:', utterance.text);
-        window.speechSynthesis.speak(utterance);
-      }
-      
       // Call the selection callback
       onSelect();
       
@@ -69,6 +47,7 @@ export function useEogSelection({
     handleFocus,
     handleBlur,
     eogProps: {
+      'data-eog-id': id,
       onMouseEnter: handleFocus,
       onMouseLeave: handleBlur,
       onFocus: handleFocus,

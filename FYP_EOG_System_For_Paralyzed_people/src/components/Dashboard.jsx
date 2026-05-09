@@ -6,12 +6,66 @@ import { EmergencyModal } from './EmergencyModal.jsx';
 import { HomeAppliancesModal } from './HomeAppliancesModal.jsx';
 import { useEogSelection } from '../hooks/useEogSelection.js';
 import { useEog } from '../contexts/EogContext.jsx';
+import { ttsService } from '../services/TtsService.js';
+
+function CategoryCard({ card, index, onSelect }) {
+  const Icon = card.icon;
+  const { blinkCount } = useEog();
+  
+  const { isFocused, eogProps } = useEogSelection({
+    id: `category-${card.id}`,
+    label: card.title,
+    onSelect,
+  });
+
+  return (
+    <div
+      {...eogProps}
+      onClick={onSelect}
+      className={`relative bg-gradient-to-br ${card.gradient} ${card.hoverGradient} rounded-3xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
+        isFocused ? 'ring-4 ring-white ring-offset-4 ring-offset-gray-100 scale-105' : ''
+      } animate-fade-in`}
+      style={{ animationDelay: `${index * 100}ms` }}
+    >
+      <div className="flex flex-col items-center text-center space-y-4">
+        <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+          <Icon className="w-10 h-10 text-white" />
+        </div>
+        <h3 className="text-2xl font-bold text-white">{card.title}</h3>
+        <p className="text-white/90 text-sm">{card.description}</p>
+      </div>
+      
+      {/* EOG Focus Indicator */}
+      {isFocused && (
+        <div className="absolute top-4 right-4 bg-white text-teal-600 px-3 py-1 rounded-full text-sm font-bold animate-pulse">
+          {blinkCount}/3
+        </div>
+      )}
+    </div>
+  );
+}
+
+import { eogService } from '../services/EogService.js';
 
 export function Dashboard({ currentPage, onModalStateChange }) {
   const [activeModal, setActiveModal] = useState(null);
+  const { language } = useEog();
 
   // Notify parent component when modal state changes
   const handleModalChange = (modalId) => {
+    if (modalId) {
+      // Clear any pending blinks so the modal starts fresh
+      eogService.resetBlinkCount();
+      
+      const portalName = modalId === 'communication' ? 'communication' :
+                         modalId === 'news' ? 'news' :
+                         modalId === 'home-appliances' ? 'home appliances' :
+                         modalId === 'emergency' ? 'emergency' : '';
+      if (portalName) {
+        ttsService.speak(`Opening the ${portalName} portal`, language);
+      }
+    }
+    
     setActiveModal(modalId);
     if (onModalStateChange) {
       onModalStateChange(modalId !== null);
@@ -53,42 +107,7 @@ export function Dashboard({ currentPage, onModalStateChange }) {
     },
   ];
 
-  function CategoryCard({ card, index, onSelect }) {
-    const Icon = card.icon;
-    const { blinkCount } = useEog();
-    
-    const { isFocused, eogProps } = useEogSelection({
-      id: `category-${card.id}`,
-      label: card.title,
-      onSelect,
-    });
 
-    return (
-      <div
-        {...eogProps}
-        onClick={onSelect}
-        className={`relative bg-gradient-to-br ${card.gradient} ${card.hoverGradient} rounded-3xl p-8 cursor-pointer transform transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
-          isFocused ? 'ring-4 ring-white ring-offset-4 ring-offset-gray-100 scale-105' : ''
-        } animate-fade-in`}
-        style={{ animationDelay: `${index * 100}ms` }}
-      >
-        <div className="flex flex-col items-center text-center space-y-4">
-          <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-            <Icon className="w-10 h-10 text-white" />
-          </div>
-          <h3 className="text-2xl font-bold text-white">{card.title}</h3>
-          <p className="text-white/90 text-sm">{card.description}</p>
-        </div>
-        
-        {/* EOG Focus Indicator */}
-        {isFocused && (
-          <div className="absolute top-4 right-4 bg-white text-teal-600 px-3 py-1 rounded-full text-sm font-bold animate-pulse">
-            {blinkCount}/3
-          </div>
-        )}
-      </div>
-    );
-  }
 
   if (currentPage === 'contact') {
     return (
@@ -263,7 +282,12 @@ export function Dashboard({ currentPage, onModalStateChange }) {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8 max-w-5xl mx-auto">
         {cards.map((card, index) => (
-          <CategoryCard key={card.id} card={card} index={index} onSelect={() => handleModalChange(card.id)} />
+          <CategoryCard
+            key={card.id}
+            card={card}
+            index={index}
+            onSelect={() => handleModalChange(card.id)}
+          />
         ))}
       </div>
 

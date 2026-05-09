@@ -1,6 +1,7 @@
 import { Home, Mail, Info, Globe, LogOut, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.jsx';
 import { useEog } from '../contexts/EogContext.jsx';
+import { useEogSelection } from '../hooks/useEogSelection.js';
 
 const languages = [
   { code: 'en', name: 'English' },
@@ -13,13 +14,50 @@ const languages = [
 
 export function Sidebar({ currentPage, onPageChange, language, onLanguageChange, isOpen, onClose, hideOnModal = false }) {
   const { signOut } = useAuth();
-  const { isEogEnabled, setEogEnabled, setLanguage, eogMode, setEogMode } = useEog();
-
+  const { isEogEnabled, setEogEnabled, setLanguage, eogMode, setEogMode, blinkCount } = useEog();
+  
   const menuItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'contact', label: 'Contact', icon: Mail },
     { id: 'about', label: 'About', icon: Info },
   ];
+
+  function SidebarButton({ item }) {
+    const Icon = item.icon;
+    const { isFocused, eogProps } = useEogSelection({
+      id: `sidebar-${item.id}`,
+      label: item.label,
+      onSelect: () => handlePageChange(item.id),
+    });
+
+    return (
+      <button
+        {...eogProps}
+        onClick={() => handlePageChange(item.id)}
+        className={`w-full flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 rounded-xl transition-all duration-300 transform hover:scale-105 ${
+          currentPage === item.id
+            ? 'bg-white text-teal-600 shadow-lg'
+            : 'hover:bg-white/10 text-white'
+        } ${isFocused ? 'ring-2 ring-white scale-105' : ''}`}
+      >
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
+          <span className="font-medium text-sm sm:text-base">{item.label}</span>
+        </div>
+        {isFocused && (
+          <span className="text-[10px] bg-teal-500 text-white px-1.5 py-0.5 rounded-full font-bold animate-pulse">
+            {blinkCount}/3
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  const { isFocused: isSignOutFocused, eogProps: signOutEogProps } = useEogSelection({
+    id: 'sidebar-signout',
+    label: 'Sign Out',
+    onSelect: signOut,
+  });
 
   const handleLanguageChange = (newLang) => {
     onLanguageChange(newLang);
@@ -48,23 +86,9 @@ export function Sidebar({ currentPage, onPageChange, language, onLanguageChange,
       </div>
 
       <nav className="flex-1 p-3 sm:p-4 space-y-2">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          return (
-            <button
-              key={item.id}
-              onClick={() => handlePageChange(item.id)}
-              className={`w-full flex items-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-xl transition-all duration-300 transform hover:scale-105 ${
-                currentPage === item.id
-                  ? 'bg-white text-teal-600 shadow-lg'
-                  : 'hover:bg-white/10 text-white'
-              }`}
-            >
-              <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="font-medium text-sm sm:text-base">{item.label}</span>
-            </button>
-          );
-        })}
+        {menuItems.map((item) => (
+          <SidebarButton key={item.id} item={item} />
+        ))}
 
         {/* EOG Toggle */}
         <div className="pt-3 sm:pt-4 border-t border-white/20 mt-3 sm:mt-4">
@@ -110,6 +134,17 @@ export function Sidebar({ currentPage, onPageChange, language, onLanguageChange,
               >
                 <div className="flex-1 text-left">⌨️ Keyboard (Spacebar)</div>
               </button>
+              
+              <button
+                onClick={() => setEogMode('webcam')}
+                className={`w-full flex items-center px-3 sm:px-4 py-2 rounded-xl transition-all text-sm ${
+                  eogMode === 'webcam'
+                    ? 'bg-white text-teal-600 shadow-md'
+                    : 'bg-white/10 hover:bg-white/20 text-white'
+                }`}
+              >
+                <div className="flex-1 text-left">📷 WebCam Tracking</div>
+              </button>
             </div>
           </div>
         )}
@@ -134,11 +169,19 @@ export function Sidebar({ currentPage, onPageChange, language, onLanguageChange,
       
       {/* ----- sign out button ------------*/}
         <button
+          {...signOutEogProps}
           onClick={signOut}
-          className="w-full  flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-xl bg-red-500 hover:bg-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg text-sm sm:text-base"
+          className={`w-full flex items-center justify-center space-x-2 sm:space-x-3 px-3 sm:px-4 py-2 sm:py-3 rounded-xl bg-red-500 hover:bg-red-600 transition-all duration-300 transform hover:scale-105 shadow-lg text-sm sm:text-base ${
+            isSignOutFocused ? 'ring-4 ring-white ring-offset-2 scale-110' : ''
+          }`}
         >
           <LogOut className="w-4 h-4 sm:w-5 sm:h-5" />
           <span className="font-medium">Sign Out</span>
+          {isSignOutFocused && (
+            <span className="ml-2 bg-white text-red-600 px-2 py-0.5 rounded-full text-xs font-bold animate-pulse">
+              {blinkCount}/3
+            </span>
+          )}
         </button>
       </div>
     </div>

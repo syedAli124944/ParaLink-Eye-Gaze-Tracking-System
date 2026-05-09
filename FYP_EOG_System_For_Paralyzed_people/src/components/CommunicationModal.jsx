@@ -1,7 +1,9 @@
 import { X } from 'lucide-react';
 import { useEogSelection } from '../hooks/useEogSelection.js';
 import { useEog } from '../contexts/EogContext.jsx';
+import { useDoubleBlink } from '../hooks/useDoubleBlink.js';
 import { ttsService } from '../services/TtsService.js';
+import { sendSelection, playBackendAudio } from '../services/ApiService.js';
 
 const emotions = [
   {
@@ -70,32 +72,17 @@ const emotions = [
 ];
 
 function EmotionCard({ emotion, index }) {
-  const { blinkCount } = useEog();
+  const { blinkCount, language } = useEog();
   
   const handleSelect = () => {
-    // Speak immediately when clicking
     console.log('Emotion selected:', emotion.label);
     
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      
-      const utterance = new SpeechSynthesisUtterance();
-      utterance.text = emotion.label === 'Pain' ? 'I am in pain' :
-                       emotion.label === 'Happy' ? 'I am happy' :
-                       emotion.label === 'Sad' ? 'I am sad' :
-                       emotion.label === 'Hungry' ? 'I am hungry' :
-                       emotion.label === 'Washroom' ? 'I need the washroom' :
-                       emotion.label === 'Tired' ? 'I am tired' :
-                       emotion.label === 'Thirsty' ? 'I am thirsty' :
-                       emotion.label === 'Cold' ? 'I am cold' :
-                       emotion.label === 'Hot' ? 'I am hot' : emotion.label;
-      utterance.lang = 'en-US';
-      utterance.rate = 0.9;
-      utterance.volume = 1;
-      
-      console.log('Speaking:', utterance.text);
-      window.speechSynthesis.speak(utterance);
-    }
+    // 1. Immediate speech (fixes delay)
+    ttsService.speak(emotion.label, language);
+
+    // 2. Background API request (no delay for UI)
+    sendSelection('communication', emotion.id, language)
+      .catch(error => console.warn('Backend error:', error));
   };
   
   const { isFocused, eogProps } = useEogSelection({
@@ -127,6 +114,7 @@ function EmotionCard({ emotion, index }) {
 }
 
 export function CommunicationModal({ onClose }) {
+  useDoubleBlink(onClose);
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 animate-fade-in">
       <div className="bg-white rounded-2xl sm:rounded-3xl max-w-6xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto hide-scrollbar shadow-2xl">

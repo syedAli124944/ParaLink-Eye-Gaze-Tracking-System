@@ -7,6 +7,8 @@ import { WelcomeScreen } from './components/WelcomeScreen.jsx';
 import { Sidebar } from './components/Sidebar.jsx';
 import { Dashboard } from './components/Dashboard.jsx';
 import { BlinkIndicator } from './components/BlinkIndicator.jsx';
+import { WebcamPreview } from './components/WebcamPreview.jsx';
+import { GazeCursor } from './components/GazeCursor.jsx';
 
 
 function AppContent() {
@@ -23,7 +25,11 @@ function AppContent() {
 
   useEffect(() => {
     if (user) {
-      setShowWelcome(true);
+      const hasSeenWelcome = sessionStorage.getItem('hasSeenWelcome');
+      if (!hasSeenWelcome) {
+        setShowWelcome(true);
+        sessionStorage.setItem('hasSeenWelcome', 'true');
+      }
       loadUserPreferences();
     }
   }, [user]);
@@ -78,6 +84,8 @@ function AppContent() {
   return (
     <>
       <BlinkIndicator />
+      <WebcamPreview />
+      <GazeCursor />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
         {/* Mobile Menu Button */}
         <button
