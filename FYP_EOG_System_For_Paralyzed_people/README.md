@@ -168,7 +168,7 @@ The application is built with **accessibility and usability** as top priorities:
 
 ## 🔒 Security
 
-- Secure local session management
+- Secure local session managementt
 - Session management with automatic state cleanup
 - All user data is encrypted and stored securely
 - Session management with automatic token refresh
