@@ -9,7 +9,7 @@ This Final Year Project (FYP) aims to bridge the communication gap for paralyzed
 ## ✨ Key Features
 
 ### 🔐 Authentication System
-- **Secure Login & Signup**: User authentication powered by Supabase
+- **Secure Login & Signup**: User authentication using local session storage
 - **Animated Transitions**: Smooth, calming animations throughout the auth flow
 - **User-Friendly Forms**: Large, accessible input fields designed for EOG interaction
 
@@ -51,18 +51,16 @@ This Final Year Project (FYP) aims to bridge the communication gap for paralyzed
 
 ### Frontend
 - **React 18.3.1**: Modern UI library for building interactive interfaces
-- **TypeScript 5.5.3**: Type-safe development
 - **Vite 5.4.2**: Fast build tool and development server
 - **Tailwind CSS 3.4.1**: Utility-first CSS framework for styling
 
 ### Backend & Database
-- **Supabase**: Backend-as-a-Service for authentication and data management
-- **PostgreSQL**: Robust database through Supabase
+- **FastAPI**: High-performance, easy-to-learn Python web framework
+- **Python**: Backend scripting and hardware communication
 
 ### Development Tools
 - **ESLint**: Code linting and quality assurance
 - **PostCSS & Autoprefixer**: CSS processing and browser compatibility
-- **TypeScript ESLint**: TypeScript-specific linting rules
 
 ### UI Components
 - **Lucide React**: Beautiful, consistent icons
@@ -72,7 +70,7 @@ This Final Year Project (FYP) aims to bridge the communication gap for paralyzed
 Before you begin, ensure you have the following installed:
 - **Node.js** (v18 or higher)
 - **npm** or **yarn** package manager
-- A **Supabase account** (for backend services)
+- **Python** (v3.8 or higher)
 
 ## 🚀 Installation
 
@@ -87,22 +85,14 @@ Before you begin, ensure you have the following installed:
    npm install
    ```
 
-3. **Configure environment variables**
+3. **Set up Python Backend**
    
-   Create a `.env` file in the root directory by copying `.env.example`:
+   Navigate to the backend directory and run the server:
    ```bash
-   cp .env.example .env
+   cd backend
+   pip install -r requirements.txt
+   python main.py
    ```
-   
-   Update the `.env` file with your Supabase credentials:
-   ```env
-   VITE_SUPABASE_URL=your-supabase-url
-   VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
-   ```
-
-4. **Set up Supabase database**
-   
-   Run the SQL migrations located in the `supabase` directory to set up your database schema.
 
 ## 💻 Usage
 
@@ -113,7 +103,10 @@ Start the development server:
 npm run dev
 ```
 
-The application will be available at `http://localhost:5173`
+The application will be available at `http://localhost:5174` (or `5173` if no other projects are running).
+
+> [!TIP]
+> Always check your terminal output after running `npm run dev` to see the exact URL.
 
 ### Build for Production
 
@@ -136,38 +129,30 @@ Run ESLint to check code quality:
 npm run lint
 ```
 
-### Type Checking
-
-Run TypeScript type checking:
-```bash
-npm run typecheck
-```
-
 ## 📁 Project Structure
 
 ```
 FYP_EOG_System_For_Paralyzed_people/
 ├── src/
 │   ├── components/          # React components
-│   │   ├── Dashboard.tsx    # Main dashboard
-│   │   ├── Login.tsx        # Login component
-│   │   ├── SignUp.tsx       # Signup component
-│   │   ├── WelcomeScreen.tsx # Welcome animation
-│   │   └── Sidebar.tsx      # Navigation sidebar
+│   │   ├── Dashboard.jsx    # Main dashboard
+│   │   ├── Login.jsx        # Login component
+│   │   ├── SignUp.jsx       # Signup component
+│   │   ├── WelcomeScreen.jsx # Welcome animation
+│   │   └── Sidebar.jsx      # Navigation sidebar
 │   ├── contexts/            # React contexts
-│   │   └── AuthContext.tsx  # Authentication context
-│   ├── lib/                 # Utility libraries
-│   │   └── supabase.ts      # Supabase client
-│   ├── App.tsx              # Main application component
-│   ├── main.tsx             # Application entry point
+│   │   ├── AuthContext.jsx  # Authentication context
+│   │   └── EogContext.jsx   # EOG tracking context
+│   ├── hooks/               # Custom React hooks
+│   ├── services/            # Backend and API services
+│   ├── App.jsx              # Main application component
+│   ├── main.jsx             # Application entry point
 │   └── index.css            # Global styles
-├── supabase/                # Database migrations and config
+├── backend/                 # FastAPI backend server
 ├── public/                  # Static assets
-├── .env.example             # Environment variables template
 ├── package.json             # Dependencies and scripts
-├── tsconfig.json            # TypeScript configuration
 ├── tailwind.config.js       # Tailwind CSS configuration
-├── vite.config.ts           # Vite configuration
+├── vite.config.js           # Vite configuration
 └── README.md                # This file
 ```
 
@@ -183,8 +168,8 @@ The application is built with **accessibility and usability** as top priorities:
 
 ## 🔒 Security
 
-- User authentication is handled securely through Supabase
-- Environment variables keep sensitive credentials safe
+- Secure local session management
+- Session management with automatic state cleanup
 - All user data is encrypted and stored securely
 - Session management with automatic token refresh
 
